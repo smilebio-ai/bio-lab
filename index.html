@@ -3,12 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>광합성 가상 실험실</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <title>광합성 가상 실험실 Pro</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Pretendard', sans-serif; background: #f8fafc; }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        .tube-gradient { background: linear-gradient(180deg, rgba(219, 234, 254, 0.4) 0%, rgba(191, 219, 254, 0.8) 100%); }
+    </style>
 </head>
 <body>
     <div id="root"></div>
@@ -16,202 +23,82 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // 아이콘 컴포넌트 래퍼 (Lucide 아이콘을 React에서 쓰기 위함)
-        const Icon = ({ name, className }) => {
-            const iconRef = useRef(null);
-            useEffect(() => {
-                if (window.lucide) {
-                    window.lucide.createIcons();
-                }
-            }, [name]);
-            return <i data-lucide={name} className={className}></i>;
+        // 고퀄리티 SVG 아이콘 컴포넌트
+        const Icon = ({ name, className = "w-6 h-6" }) => {
+            const icons = {
+                beaker: <path d="M4.5 3h15M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3M6 14h12" />,
+                layers: <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.59-3.91a1 1 0 0 0 .58-.91 M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.59-3.91a1 1 0 0 0 .58-.91" />,
+                flame: <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />,
+                droplet: <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5s-3 3.5-3 5.5a7 7 0 0 0 7 7z" />,
+                play: <polygon points="5 3 19 12 5 21 5 3" />,
+                refresh: <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M3 21v-5h5" />
+            };
+            return (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    {icons[name]}
+                </svg>
+            );
         };
 
         const App = () => {
             const [step, setStep] = useState(0);
-            const [viewMode, setViewMode] = useState('bench');
             const [isDragging, setIsDragging] = useState(false);
-            const [draggedItem, setDraggedItem] = useState(null); 
+            const [draggedItem, setDraggedItem] = useState(null);
             const [toolPos, setToolPos] = useState({ x: 0, y: 0 });
             
-            const [elodeaInA, setElodeaInA] = useState(false);
-            const [elodeaInB, setElodeaInB] = useState(false);
-            const [foilOnB, setFoilOnB] = useState(false);
-            const [incenseStatus, setIncenseStatus] = useState('normal'); 
-            const [appliedIodineA, setAppliedIodineA] = useState(false);
-            const [appliedIodineB, setAppliedIodineB] = useState(false);
-            const [isDropping, setIsDropping] = useState(false);
-            
+            // 실험 상태
+            const [elodeaA, setElodeaA] = useState(false);
+            const [elodeaB, setElodeaB] = useState(false);
+            const [foilB, setFoilB] = useState(false);
+            const [incenseResult, setIncenseResult] = useState('normal'); 
+            const [iodineA, setIodineA] = useState(false);
+            const [iodineB, setIodineB] = useState(false);
+
             const containerRef = useRef(null);
             const tubeARef = useRef(null);
             const tubeBRef = useRef(null);
 
             const steps = [
-                { title: "실험 준비", desc: "검정말을 드래그하여 시험관 A, B에 넣고, 시험관 B는 알루미늄 호일로 감싸 빛을 차단하세요." },
-                { title: "향불 테스트", desc: "향불 끝을 시험관 입구 근처로 가져가 변화를 관찰해 보세요." },
-                { title: "탈색 과정", desc: "에탄올이 든 비커에 잎을 넣고 중탕하여 엽록소를 제거합니다. (잎이 하얗게 변합니다)" },
-                { title: "아이오딘 반응", desc: "스포이트를 드래그하여 각 시험관에 아이오딘 용액을 떨어뜨려 보세요." },
-                { title: "현미경 관찰", desc: "세포 속에 나타난 변화를 관찰하고 결과를 해석해 봅시다." }
+                { title: "실험 준비", desc: "검정말을 드래그하여 시험관 A, B에 넣고, B는 알루미늄 호일로 감싸세요." },
+                { title: "향불 테스트", desc: "향불을 가져가 광합성으로 발생한 산소를 확인해 보세요." },
+                { title: "탈색 및 아이오딘 반응", desc: "엽록소를 제거한 잎에 아이오딘 용액을 떨어뜨려 녹말 형성을 확인합니다." }
             ];
 
             useEffect(() => {
                 const handleMove = (e) => {
-                    if (!isDragging || !containerRef.current) return;
+                    if (!isDragging) return;
                     const rect = containerRef.current.getBoundingClientRect();
-                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-                    const x = clientX - rect.left;
-                    const y = clientY - rect.top;
+                    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
                     setToolPos({ x, y });
 
-                    const checkCollision = (ref) => {
-                        if (!ref.current) return false;
-                        const tubeRect = ref.current.getBoundingClientRect();
-                        const relativeTubeX = tubeRect.left - rect.left + tubeRect.width / 2;
-                        let relativeTargetY = (tubeRect.top - rect.top + tubeRect.height / 2);
-                        if (step === 1) relativeTargetY = (tubeRect.top - rect.top) - 48;
-                        else if (step === 3) relativeTargetY = (tubeRect.top - rect.top);
-                        
-                        const dist = Math.sqrt(Math.pow(x - relativeTubeX, 2) + Math.pow((step === 1 ? y-120 : y) - relativeTargetY, 2));
-                        return dist < (step === 0 ? 90 : 55); 
+                    const checkHit = (ref) => {
+                        const tRect = ref.current.getBoundingClientRect();
+                        const tx = tRect.left - rect.left + tRect.width/2;
+                        const ty = tRect.top - rect.top + tRect.height/2;
+                        return Math.sqrt(Math.pow(x-tx,2) + Math.pow(y-ty,2)) < 60;
                     };
 
                     if (step === 0) {
-                        if (draggedItem === 'elodea') {
-                            if (checkCollision(tubeARef)) setElodeaInA(true);
-                            if (checkCollision(tubeBRef)) setElodeaInB(true);
-                        } else if (draggedItem === 'foil') {
-                            if (checkCollision(tubeBRef)) setFoilOnB(true);
-                        }
-                    } else if (step === 1 && draggedItem === 'incense') {
-                        if (checkCollision(tubeARef)) setIncenseStatus('bright');
-                        else if (checkCollision(tubeBRef)) setIncenseStatus('off');
-                        else setIncenseStatus('normal');
-                    } else if (step === 3 && draggedItem === 'iodine') {
-                        if (checkCollision(tubeARef)) {
-                            setIsDropping(true);
-                            setTimeout(() => setAppliedIodineA(true), 300);
-                        } else if (checkCollision(tubeBRef)) {
-                            setIsDropping(true);
-                            setTimeout(() => setAppliedIodineB(true), 300);
-                        }
+                        if (draggedItem === 'plant') {
+                            if (checkHit(tubeARef)) setElodeaA(true);
+                            if (checkHit(tubeBRef)) setElodeaB(true);
+                        } else if (draggedItem === 'foil' && checkHit(tubeBRef)) setFoilB(true);
+                    } else if (step === 1 && draggedItem === 'fire') {
+                        if (checkHit(tubeARef)) setIncenseResult('bright');
+                        else if (checkHit(tubeBRef)) setIncenseResult('dim');
+                    } else if (step === 2 && draggedItem === 'drop') {
+                        if (checkHit(tubeARef)) setIodineA(true);
+                        else if (checkHit(tubeBRef)) setIodineB(true);
                     }
                 };
-
-                const handleEnd = () => { setIsDragging(false); setIsDropping(false); setDraggedItem(null); };
-                if (isDragging) {
-                    window.addEventListener('mousemove', handleMove);
-                    window.addEventListener('mouseup', handleEnd);
-                }
-                return () => {
-                    window.removeEventListener('mousemove', handleMove);
-                    window.removeEventListener('mouseup', handleEnd);
-                };
+                const endDrag = () => setIsDragging(false);
+                window.addEventListener('mousemove', handleMove);
+                window.addEventListener('mouseup', endDrag);
+                return () => { window.removeEventListener('mousemove', handleMove); window.removeEventListener('mouseup', endDrag); };
             }, [isDragging, draggedItem, step]);
 
-            const onDragStart = (e, itemType) => {
-                const rect = containerRef.current.getBoundingClientRect();
-                setIsDragging(true);
-                setDraggedItem(itemType);
-                setToolPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-            };
-
-            const Dropper = ({ isAnimate }) => (
-                <div className={`relative flex flex-col items-center ${isAnimate ? 'scale-110' : ''}`}>
-                    <div className="w-6 h-7 bg-red-600 rounded-t-full shadow-md"></div>
-                    <div className="w-6 h-1 bg-slate-400"></div>
-                    <div className="w-2.5 h-20 bg-slate-200/40 border-x border-slate-300 relative overflow-hidden flex flex-col justify-end">
-                        <div className="w-full h-1/2 bg-amber-600 opacity-80"></div>
-                    </div>
-                </div>
-            );
-
-            const TestTube = ({ label, hasElodea, isCovered, resultType, isBleached, isIodined, refProp }) => (
-                <div className="flex flex-col items-center mx-12 relative" ref={refProp}>
-                    <div className="relative w-14 h-52 bg-blue-100/30 border-2 border-slate-300 rounded-b-full overflow-hidden">
-                        <div className="absolute bottom-0 w-full h-4/5 bg-blue-200/50"></div>
-                        {hasElodea && (
-                            <div className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-4 h-36 transition-all duration-1000 ${isBleached ? (isIodined && resultType === 'A' ? 'bg-indigo-950' : 'bg-slate-100') : 'bg-green-600'} rounded-t-full`}></div>
-                        )}
-                        {isCovered && step === 0 && (
-                            <div className="absolute inset-0 bg-slate-600 z-10 flex items-center justify-center border-2 border-slate-400">
-                                <span className="text-white text-[10px] font-bold -rotate-90">HOIL</span>
-                            </div>
-                        )}
-                        {isIodined && <div className={`absolute inset-0 ${resultType === 'A' ? 'bg-indigo-900/40' : 'bg-amber-700/20'}`}></div>}
-                    </div>
-                    <div className="mt-3 font-bold text-slate-700 bg-white px-3 py-1 rounded-full shadow-sm text-sm">시험관 {label}</div>
-                </div>
-            );
-
             return (
-                <div className="flex flex-col min-h-screen bg-slate-50 p-4 select-none">
-                    <div className="mb-6 text-center">
-                        <h1 className="text-3xl font-bold text-slate-800 flex items-center justify-center gap-2">
-                            <Icon name="beaker" className="text-blue-500 w-8 h-8" /> 광합성 가상 실험실
-                        </h1>
-                    </div>
-
-                    <div className="flex flex-col lg:flex-row gap-6 max-w-6xl mx-auto w-full">
-                        <div ref={containerRef} className="flex-[3] bg-white rounded-3xl shadow-xl p-8 flex flex-col items-center justify-center relative border border-slate-100 min-h-[500px]">
-                            {viewMode === 'bench' ? (
-                                <>
-                                    <div className="flex gap-4 absolute left-4 top-4">
-                                        {step === 0 && (
-                                            <>
-                                                <button onMouseDown={(e) => onDragStart(e, 'elodea')} className="bg-green-50 p-4 rounded-2xl border-2 border-green-200"><Icon name="layers" className="text-green-500" /></button>
-                                                <button onMouseDown={(e) => onDragStart(e, 'foil')} className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-200"><Icon name="square" className="text-slate-400" /></button>
-                                            </>
-                                        )}
-                                        {step === 1 && <button onMouseDown={(e) => onDragStart(e, 'incense')} className="bg-orange-50 p-4 rounded-2xl border-2 border-orange-200"><Icon name="flame" className="text-orange-500" /></button>}
-                                        {step === 3 && <button onMouseDown={(e) => onDragStart(e, 'iodine')} className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-200"><Icon name="droplet" className="text-amber-500" /></button>}
-                                    </div>
-                                    <div className="flex items-end justify-center w-full h-64">
-                                        <TestTube label="A" hasElodea={elodeaInA} isBleached={step >= 2} isIodined={appliedIodineA} resultType="A" refProp={tubeARef} />
-                                        <TestTube label="B" hasElodea={elodeaInB} isCovered={foilOnB} isBleached={step >= 2} isIodined={appliedIodineB} resultType="B" refProp={tubeBRef} />
-                                    </div>
-                                    {isDragging && (
-                                        <div className="absolute pointer-events-none z-50" style={{ left: toolPos.x, top: toolPos.y, transform: 'translate(-50%, -50%)' }}>
-                                            {draggedItem === 'elodea' && <div className="w-4 h-16 bg-green-600 rounded-full border-2 border-white shadow-xl"></div>}
-                                            {draggedItem === 'foil' && <div className="w-16 h-12 bg-slate-400 border-2 border-white shadow-xl"></div>}
-                                            {draggedItem === 'incense' && <div className={`w-1.5 h-32 bg-amber-800 border-t-4 border-red-500 ${incenseStatus === 'bright' ? 'shadow-[0_0_20px_orange]' : ''}`}></div>}
-                                            {draggedItem === 'iodine' && <Dropper isAnimate={true} />}
-                                        </div>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="flex gap-10">
-                                    <div className="w-64 h-64 rounded-full border-8 border-slate-800 bg-indigo-900/20 flex items-center justify-center font-bold">A (청람색)</div>
-                                    <div className="w-64 h-64 rounded-full border-8 border-slate-800 bg-amber-700/10 flex items-center justify-center font-bold">B (변화없음)</div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex-1 bg-slate-900 text-white rounded-3xl p-6 shadow-2xl">
-                            <h2 className="text-xl font-bold mb-4 text-blue-400 border-b border-slate-700 pb-2">실험 가이드</h2>
-                            <div className="bg-slate-800 p-4 rounded-xl mb-6">
-                                <h3 className="text-blue-300 font-bold text-sm mb-1">{steps[step].title}</h3>
-                                <p className="text-sm text-slate-300">{steps[step].desc}</p>
-                            </div>
-                            <button 
-                                onClick={() => step < 4 && setStep(step + 1)}
-                                className={`w-full py-4 rounded-xl font-bold transition-all ${step === 4 ? 'bg-slate-700' : 'bg-blue-600 hover:bg-blue-500'}`}
-                            >
-                                다음 단계로
-                            </button>
-                            {step === 4 && (
-                                <button onClick={() => setViewMode(viewMode === 'bench' ? 'micro' : 'bench')} className="w-full mt-4 py-4 bg-emerald-600 rounded-xl font-bold">
-                                    {viewMode === 'bench' ? '현미경 관찰' : '실험대 보기'}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+                <div className="min-h-screen p-4 md:p-8 flex flex-col items-center">
+                    <header className="max-w-5xl w-full mb-8 flex justify-between items-center">
+                        <div>
