@@ -3,69 +3,259 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>광합성 가상 실험실 - 현미경 특화 버전</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <title>광합성 실험실 - 하이엔드 현미경 버전</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/react/18.2.0/react.production.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/reactdom/18.2.0/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
-        body { font-family: 'Pretendard', sans-serif; background: #f1f5f9; color: #1e293b; margin: 0; touch-action: none; }
+        body { font-family: 'Pretendard', sans-serif; background: #f1f5f9; color: #1e293b; margin: 0; touch-action: none; overflow-x: hidden; }
         
         /* 현미경 렌즈 효과 */
-        .microscope-lens {
+        .lens-frame {
             width: 320px; height: 320px;
             border-radius: 50%;
-            border: 12px solid #0f172a;
-            box-shadow: inset 0 0 50px rgba(0,0,0,0.5), 0 20px 50px rgba(0,0,0,0.3);
+            border: 15px solid #0f172a;
+            background: #fff;
             position: relative;
             overflow: hidden;
-            background: #fff;
+            box-shadow: inset 0 0 60px rgba(0,0,0,0.6), 0 25px 50px rgba(0,0,0,0.3);
         }
-        .microscope-lens::after {
+        .lens-frame::after {
             content: ''; position: absolute; inset: 0;
-            background: radial-gradient(circle, transparent 60%, rgba(0,0,0,0.2) 100%);
+            background: radial-gradient(circle, transparent 65%, rgba(0,0,0,0.2) 100%);
             pointer-events: none;
         }
 
-        /* 식물 세포 벽(Plant Cell) 스타일 */
-        .plant-cell {
-            border: 1px solid rgba(0,0,0,0.1);
-            position: relative;
-            display: flex; flex-wrap: wrap; gap: 2px; padding: 4px;
-            background: rgba(255,255,255,0.5);
+        /* 실제 식물 세포벽 느낌 */
+        .cell-wall {
+            border: 1px solid rgba(0,0,0,0.08);
+            display: flex; flex-wrap: wrap; gap: 2px; padding: 3px;
+            background: rgba(255,255,255,0.4);
         }
 
-        /* 엽록체(Chloroplast) 스타일 */
-        .chloroplast {
-            width: 6px; height: 6px; border-radius: 50%;
-            transition: all 1s ease;
-        }
-
-        .glass-ui { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.4); }
-        @keyframes drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(2px, 2px); } }
-        .cell-drift { animation: drift 4s infinite ease-in-out; }
+        .glass-card { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.5); }
+        @keyframes float-cells { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, 3px); } }
+        .cell-anim { animation: float-cells 5s infinite ease-in-out; }
     </style>
 </head>
 <body>
-    <div id="root"></div>
+    <div id="root">
+        <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
+            <p style="font-weight:bold; color:#64748b;">실험실 장비를 조립 중입니다...</p>
+        </div>
+    </div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        const Icon = ({ name, className = "w-5 h-5" }) => {
-            const icons = {
+        // 아이콘을 직접 내장 (에러 원인 차단)
+        const SvgIcon = ({ name }) => {
+            const paths = {
                 beaker: <path d="M4.5 3h15M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3M6 14h12" />,
                 layers: <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />,
                 drop: <path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5s-3 3.5-3 5.5a7 7 0 0 0 7 7z" />,
-                micro: <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>,
-                play: <polygon points="5 3 19 12 5 21 5 3" />,
-                reset: <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8 M21 3v5h-5 M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16 M3 21v-5h5" />
+                micro: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></>,
+                play: <polygon points="5 3 19 12 5 21 5 3" />
             };
-            return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{icons[name]}</svg>;
+            return (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{width:'100%', height:'100%'}}>
+                    {paths[name]}
+                </svg>
+            );
         };
 
-        const MicroscopeView = ({ type }) => {
-            const isA = type === 'A';
-            // 실제 검정말 세포처럼 보이도록 24개의 세포 생성
+        const App = () => {
+            const [step, setStep] = useState(0);
+            const [viewMode, setViewMode] = useState('bench');
+            const [isDragging, setIsDragging] = useState(false);
+            const [dragType, setDragType] = useState(null);
+            const [pos, setPos] = useState({ x: 0, y: 0 });
+            const [status, setStatus] = useState({ a: false, b: false, foil: false, iA: false, iB: false, fire: 'none' });
+
+            const containerRef = useRef(null);
+            const tubeARef = useRef(null);
+            const tubeBRef = useRef(null);
+
+            const steps = [
+                { t: "1. 실험 준비", d: "검정말을 시험관에 넣고, 시험관 B는 호일로 감싸 빛을 차단하세요." },
+                { t: "2. 기포 확인", d: "향불을 입구에 가져가 산소(기포)가 발생하는지 확인하세요." },
+                { t: "3. 엽록소 제거", d: "에탄올 중탕으로 잎의 색을 제거합니다. (자동 진행 중)" },
+                { t: "4. 아이오딘 반응", d: "아이오딘 용액을 떨어뜨려 녹말 생성 여부를 확인하세요." },
+                { t: "5. 현미경 관찰", d: "세포 속 엽록체의 변화를 현미경으로 관찰해봅시다." }
+            ];
+
+            useEffect(() => {
+                const move = (e) => {
+                    if (!isDragging) return;
+                    const r = containerRef.current.getBoundingClientRect();
+                    const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+                    const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+                    setPos({ x, y });
+
+                    const hit = (ref) => {
+                        const tr = ref.current.getBoundingClientRect();
+                        return Math.sqrt(Math.pow(x - (tr.left-r.left+tr.width/2), 2) + Math.pow(y - (tr.top-r.top), 2)) < 60;
+                    };
+
+                    if (step === 0) {
+                        if (dragType === 'p') { if(hit(tubeARef)) setStatus(s=>({...s, a:true})); if(hit(tubeBRef)) setStatus(s=>({...s, b:true})); }
+                        else if (dragType === 'f' && hit(tubeBRef)) setStatus(s=>({...s, foil:true}));
+                    } else if (step === 1 && dragType === 'fire') {
+                        if(hit(tubeARef)) setStatus(s=>({...s, fire:'bright'}));
+                        else if(hit(tubeBRef)) setStatus(s=>({...s, fire:'off'}));
+                    } else if (step === 3 && dragType === 'drop') {
+                        if(hit(tubeARef)) setStatus(s=>({...s, iA:true}));
+                        if(hit(tubeBRef)) setStatus(s=>({...s, iB:true}));
+                    }
+                };
+                const end = () => setIsDragging(false);
+                window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
+                return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end); };
+            }, [isDragging, dragType, step]);
+
             return (
+                <div className="min-h-screen flex flex-col p-4 md:p-8">
+                    <header className="max-w-6xl mx-auto w-full mb-8 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-xl shadow-blue-200"><SvgIcon name="beaker"/></div>
+                            <div>
+                                <h1 className="text-2xl font-black text-slate-800 tracking-tight">VIRTUAL BIOLAB</h1>
+                                <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Photosynthesis Simulation</p>
+                            </div>
+                        </div>
+                        <div className="bg-white px-5 py-2 rounded-2xl shadow-sm border text-sm font-bold text-slate-500">
+                            STEP 0{step+1}
+                        </div>
+                    </header>
+
+                    <main className="max-w-6xl mx-auto w-full flex-1 grid lg:grid-cols-4 gap-8">
+                        <div ref={containerRef} className="lg:col-span-3 glass-card rounded-[3.5rem] shadow-2xl relative flex flex-col items-center justify-center min-h-[550px] overflow-hidden border-4 border-white">
+                            {viewMode === 'bench' ? (
+                                <div className="w-full h-full flex flex-col items-center justify-center relative pt-20">
+                                    <div className="absolute top-8 left-10 flex gap-4 z-20">
+                                        {step === 0 && (
+                                            <>
+                                                {!status.a && <div onMouseDown={()=>{setIsDragging(true); setDragType('p');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-green-50 hover:scale-110 transition-transform"><div className="w-8 h-8 text-green-500"><SvgIcon name="layers"/></div></div>}
+                                                {!status.foil && <div onMouseDown={()=>{setIsDragging(true); setDragType('f');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-slate-50 hover:scale-110 transition-transform"><div className="w-10 h-8 bg-slate-400 rounded-md shadow-inner"/></div>}
+                                            </>
+                                        )}
+                                        {step === 1 && <div onMouseDown={()=>{setIsDragging(true); setDragType('fire');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-orange-50"><div className="w-1.5 h-10 bg-amber-800 rounded-full relative"><div className="absolute -top-1 w-2.5 h-2.5 bg-red-600 rounded-full animate-ping -left-0.5"/></div></div>}
+                                        {step === 3 && <div onMouseDown={()=>{setIsDragging(true); setDragType('drop');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-blue-50 transition-transform"><div className="w-8 h-8 text-blue-500"><SvgIcon name="drop"/></div></div>}
+                                    </div>
+
+                                    <div className="flex gap-28 items-end relative pb-20">
+                                        <div id="tube-a" ref={tubeARef} className="flex flex-col items-center group">
+                                            <div className="w-18 h-72 bg-blue-50/30 border-2 border-white rounded-b-full relative overflow-hidden shadow-[inset_0_4px_10px_rgba(0,0,0,0.05)]">
+                                                <div className="absolute bottom-0 w-full h-4/5 bg-blue-200/30"/>
+                                                {status.a && <div className={`absolute bottom-5 left-1/2 -translate-x-1/2 w-6 h-56 rounded-t-full transition-all duration-1000 ${status.iA ? 'bg-indigo-950 shadow-lg' : (step >= 2 ? 'bg-slate-50' : 'bg-green-500')}`}>
+                                                    {step === 1 && <div className="absolute inset-0 flex flex-col items-center py-6 gap-10 opacity-60"><div className="w-2.5 h-2.5 bg-white rounded-full animate-bounce"/><div className="w-2.5 h-2.5 bg-white rounded-full animate-bounce" style={{animationDelay:'0.7s'}}/></div>}
+                                                </div>}
+                                                {status.iA && <div className="absolute inset-0 bg-indigo-900/40 animate-pulse"/>}
+                                            </div>
+                                            <span className="mt-5 font-black text-slate-700 text-sm">TEST A (LIGHT)</span>
+                                        </div>
+
+                                        <div id="tube-b" ref={tubeBRef} className="flex flex-col items-center">
+                                            <div className="w-18 h-72 bg-blue-50/30 border-2 border-white rounded-b-full relative overflow-hidden shadow-[inset_0_4px_10px_rgba(0,0,0,0.05)]">
+                                                <div className="absolute bottom-0 w-full h-4/5 bg-blue-200/20"/>
+                                                {status.b && <div className={`absolute bottom-5 left-1/2 -translate-x-1/2 w-6 h-56 rounded-t-full transition-all duration-1000 ${status.iB ? 'bg-slate-200' : (step >= 2 ? 'bg-slate-50' : 'bg-green-600')}`}/>}
+                                                {status.foil && step === 0 && <div className="absolute inset-0 bg-slate-800 z-10 flex items-center justify-center border-2 border-slate-600 font-black text-white text-[10px] -rotate-90 tracking-widest">ALUMINUM</div>}
+                                                {status.iB && <div className="absolute inset-0 bg-amber-900/10"/>}
+                                            </div>
+                                            <span className="mt-5 font-black text-slate-400 text-sm">TEST B (DARK)</span>
+                                        </div>
+                                    </div>
+
+                                    {isDragging && (
+                                        <div className="fixed pointer-events-none z-50 scale-150" style={{left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)'}}>
+                                            {dragType === 'p' && <div className="w-4 h-20 bg-green-500 rounded-full border-2 border-white shadow-2xl"/>}
+                                            {dragType === 'f' && <div className="w-16 h-10 bg-slate-400 rounded-sm border-2 border-white shadow-2xl"/>}
+                                            {dragType === 'fire' && <div className={`w-1.5 h-36 bg-amber-800 border-t-8 border-red-500 ${status.fire === 'bright' ? 'shadow-[0_0_50px_orange]' : ''}`}/>}
+                                            {dragType === 'drop' && <div className="w-10 h-10 text-blue-600 drop-shadow-2xl"><SvgIcon name="drop"/></div>}
+                                        </div>
+                                    )}
+
+                                    {step === 2 && (
+                                        <div className="absolute inset-0 bg-white/70 backdrop-blur-md z-30 flex items-center justify-center animate-in fade-in duration-500">
+                                            <div className="bg-white p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 border border-blue-50">
+                                                <div className="w-16 h-16 border-[6px] border-blue-600 border-t-transparent rounded-full animate-spin"/>
+                                                <span className="font-black text-xl text-slate-800">엽록소 제거 중...</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="w-full h-full flex flex-col md:flex-row items-center justify-center gap-16 py-10 cell-anim">
+                                    {/* 고퀄리티 현미경 관찰 뷰 */}
+                                    {['A', 'B'].map(type => (
+                                        <div key={type} className="flex flex-col items-center gap-6">
+                                            <div className={`text-xs font-black px-5 py-2 rounded-full uppercase tracking-tighter shadow-sm ${type === 'A' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                                Specimen {type} ({type === 'A' ? 'Active' : 'Control'})
+                                            </div>
+                                            <div className="lens-frame shadow-2xl">
+                                                <div className="grid grid-cols-4 w-full h-full p-2 opacity-90">
+                                                    {[...Array(24)].map((_, i) => (
+                                                        <div key={i} className="cell-wall">
+                                                            {[...Array(8)].map((_, j) => (
+                                                                <div 
+                                                                    key={j} 
+                                                                    className={`w-1.5 h-1.5 rounded-full transition-all duration-1000 ${type === 'A' ? 'bg-indigo-950 shadow-[0_0_4px_rgba(30,27,75,0.6)]' : 'bg-green-600/30'}`}
+                                                                    style={{ margin: `${Math.random()*1}px` }}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="lg:col-span-1 flex flex-col gap-6">
+                            <div className="bg-[#0f172a] rounded-[3rem] p-8 text-white flex flex-col shadow-2xl border border-slate-800 h-full">
+                                <h2 className="text-blue-500 font-black text-[10px] tracking-[0.2em] uppercase mb-8 flex items-center gap-3">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"/> Lab Assistant
+                                </h2>
+                                <div className="flex-1 space-y-8">
+                                    <div>
+                                        <h3 className="text-xl font-black mb-3">{steps[step].t}</h3>
+                                        <p className="text-slate-400 text-sm leading-relaxed">{steps[step].d}</p>
+                                    </div>
+                                    
+                                    {step === 1 && status.fire !== 'none' && (
+                                        <div className={`p-5 rounded-2xl border-2 font-bold text-xs leading-tight transition-all ${status.fire === 'bright' ? 'bg-orange-500/10 border-orange-500/50 text-orange-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
+                                            {status.fire === 'bright' ? "✨ A 관찰 결과: 불꽃이 다시 살아납니다! 광합성으로 산소가 발생했음을 의미합니다." : "❄️ B 관찰 결과: 산소가 없어 불꽃이 바로 꺼집니다."}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                <div className="mt-12 space-y-4">
+                                    <button 
+                                        onClick={() => step < 4 && setStep(step + 1)}
+                                        disabled={step === 4 || (step === 0 && (!status.a || !status.b || !status.foil))}
+                                        className={`w-full py-5 rounded-[2rem] font-black flex items-center justify-center gap-3 transition-all active:scale-95 text-sm ${step === 4 || (step === 0 && (!status.a || !status.b || !status.foil)) ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 shadow-xl shadow-blue-900/40'}`}
+                                    >
+                                        NEXT PHASE <div className="w-4 h-4"><SvgIcon name="play"/></div>
+                                    </button>
+                                    {step === 4 && (
+                                        <button onClick={() => setViewMode(viewMode === 'bench' ? 'micro' : 'bench')} className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/40 active:scale-95 transition-all text-sm">
+                                            <div className="w-5 h-5"><SvgIcon name="micro"/></div> {viewMode === 'bench' ? "MICROSCOPE VIEW" : "RETURN TO BENCH"}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
