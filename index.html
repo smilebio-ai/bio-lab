@@ -4,15 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>광합성 실험실 - 하이엔드 현미경 버전</title>
-    <script src="https://ajax.googleapis.com/ajax/libs/react/18.2.0/react.production.min.js"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/reactdom/18.2.0/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
         body { font-family: 'Pretendard', sans-serif; background: #f1f5f9; color: #1e293b; margin: 0; touch-action: none; overflow-x: hidden; }
         
-        /* 현미경 렌즈 효과 */
         .lens-frame {
             width: 320px; height: 320px;
             border-radius: 50%;
@@ -28,29 +27,29 @@
             pointer-events: none;
         }
 
-        /* 실제 식물 세포벽 느낌 */
         .cell-wall {
             border: 1px solid rgba(0,0,0,0.08);
-            display: flex; flex-wrap: wrap; gap: 2px; padding: 3px;
+            display: flex; flex-wrap: wrap; gap: 2px; padding: 4px;
             background: rgba(255,255,255,0.4);
         }
 
         .glass-card { background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.5); }
-        @keyframes float-cells { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, 3px); } }
-        .cell-anim { animation: float-cells 5s infinite ease-in-out; }
+        @keyframes drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(3px, 3px); } }
+        .cell-anim { animation: drift 5s infinite ease-in-out; }
     </style>
 </head>
 <body>
     <div id="root">
-        <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
+        <div style="display:flex; justify-content:center; align-items:center; height:100vh; flex-direction:column; gap:20px;">
+            <div style="width:40px; height:40px; border:4px solid #3b82f6; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></div>
             <p style="font-weight:bold; color:#64748b;">실험실 장비를 조립 중입니다...</p>
         </div>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
     </div>
 
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // 아이콘을 직접 내장 (에러 원인 차단)
         const SvgIcon = ({ name }) => {
             const paths = {
                 beaker: <path d="M4.5 3h15M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3M6 14h12" />,
@@ -79,19 +78,21 @@
             const tubeBRef = useRef(null);
 
             const steps = [
-                { t: "1. 실험 준비", d: "검정말을 시험관에 넣고, 시험관 B는 호일로 감싸 빛을 차단하세요." },
+                { t: "1. 실험 준비", d: "검정말을 시험관에 넣고, B는 호일로 감싸 빛을 차단하세요." },
                 { t: "2. 기포 확인", d: "향불을 입구에 가져가 산소(기포)가 발생하는지 확인하세요." },
-                { t: "3. 엽록소 제거", d: "에탄올 중탕으로 잎의 색을 제거합니다. (자동 진행 중)" },
+                { t: "3. 엽록소 제거", d: "에탄올 중탕으로 잎의 색을 제거합니다. (자동 진행)" },
                 { t: "4. 아이오딘 반응", d: "아이오딘 용액을 떨어뜨려 녹말 생성 여부를 확인하세요." },
-                { t: "5. 현미경 관찰", d: "세포 속 엽록체의 변화를 현미경으로 관찰해봅시다." }
+                { t: "5. 현미경 관찰", d: "세포 속 엽록체의 색깔 변화를 현미경으로 확인합니다." }
             ];
 
             useEffect(() => {
                 const move = (e) => {
                     if (!isDragging) return;
                     const r = containerRef.current.getBoundingClientRect();
-                    const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-                    const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    const x = clientX - r.left;
+                    const y = clientY - r.top;
                     setPos({ x, y });
 
                     const hit = (ref) => {
@@ -111,8 +112,16 @@
                     }
                 };
                 const end = () => setIsDragging(false);
-                window.addEventListener('mousemove', move); window.addEventListener('mouseup', end);
-                return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', end); };
+                window.addEventListener('mousemove', move); 
+                window.addEventListener('mouseup', end);
+                window.addEventListener('touchmove', move, { passive: false });
+                window.addEventListener('touchend', end);
+                return () => { 
+                    window.removeEventListener('mousemove', move); 
+                    window.removeEventListener('mouseup', end);
+                    window.removeEventListener('touchmove', move);
+                    window.removeEventListener('touchend', end);
+                };
             }, [isDragging, dragType, step]);
 
             return (
@@ -125,9 +134,6 @@
                                 <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Photosynthesis Simulation</p>
                             </div>
                         </div>
-                        <div className="bg-white px-5 py-2 rounded-2xl shadow-sm border text-sm font-bold text-slate-500">
-                            STEP 0{step+1}
-                        </div>
                     </header>
 
                     <main className="max-w-6xl mx-auto w-full flex-1 grid lg:grid-cols-4 gap-8">
@@ -137,49 +143,46 @@
                                     <div className="absolute top-8 left-10 flex gap-4 z-20">
                                         {step === 0 && (
                                             <>
-                                                {!status.a && <div onMouseDown={()=>{setIsDragging(true); setDragType('p');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-green-50 hover:scale-110 transition-transform"><div className="w-8 h-8 text-green-500"><SvgIcon name="layers"/></div></div>}
-                                                {!status.foil && <div onMouseDown={()=>{setIsDragging(true); setDragType('f');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-slate-50 hover:scale-110 transition-transform"><div className="w-10 h-8 bg-slate-400 rounded-md shadow-inner"/></div>}
+                                                {!status.a && <div onMouseDown={()=>{setIsDragging(true); setDragType('p');}} onTouchStart={()=>{setIsDragging(true); setDragType('p');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-green-50 hover:scale-110 transition-transform"><div className="w-8 h-8 text-green-500"><SvgIcon name="layers"/></div></div>}
+                                                {!status.foil && <div onMouseDown={()=>{setIsDragging(true); setDragType('f');}} onTouchStart={()=>{setIsDragging(true); setDragType('f');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-slate-50 hover:scale-110 transition-transform"><div className="w-10 h-8 bg-slate-400 rounded-md shadow-inner"/></div>}
                                             </>
                                         )}
-                                        {step === 1 && <div onMouseDown={()=>{setIsDragging(true); setDragType('fire');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-orange-50"><div className="w-1.5 h-10 bg-amber-800 rounded-full relative"><div className="absolute -top-1 w-2.5 h-2.5 bg-red-600 rounded-full animate-ping -left-0.5"/></div></div>}
-                                        {step === 3 && <div onMouseDown={()=>{setIsDragging(true); setDragType('drop');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-blue-50 transition-transform"><div className="w-8 h-8 text-blue-500"><SvgIcon name="drop"/></div></div>}
+                                        {step === 1 && <div onMouseDown={()=>{setIsDragging(true); setDragType('fire');}} onTouchStart={()=>{setIsDragging(true); setDragType('fire');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-orange-50"><div className="w-1.5 h-10 bg-amber-800 rounded-full relative"><div className="absolute -top-1 w-2.5 h-2.5 bg-red-600 rounded-full animate-ping -left-0.5"/></div></div>}
+                                        {step === 3 && <div onMouseDown={()=>{setIsDragging(true); setDragType('drop');}} onTouchStart={()=>{setIsDragging(true); setDragType('drop');}} className="w-16 h-16 bg-white rounded-2xl shadow-lg flex items-center justify-center cursor-grab border-2 border-blue-50 transition-transform"><div className="w-8 h-8 text-blue-500"><SvgIcon name="drop"/></div></div>}
                                     </div>
 
                                     <div className="flex gap-28 items-end relative pb-20">
-                                        <div id="tube-a" ref={tubeARef} className="flex flex-col items-center group">
-                                            <div className="w-18 h-72 bg-blue-50/30 border-2 border-white rounded-b-full relative overflow-hidden shadow-[inset_0_4px_10px_rgba(0,0,0,0.05)]">
+                                        <div ref={tubeARef} className="flex flex-col items-center">
+                                            <div className="w-18 h-72 bg-blue-50/30 border-2 border-white rounded-b-full relative overflow-hidden">
                                                 <div className="absolute bottom-0 w-full h-4/5 bg-blue-200/30"/>
-                                                {status.a && <div className={`absolute bottom-5 left-1/2 -translate-x-1/2 w-6 h-56 rounded-t-full transition-all duration-1000 ${status.iA ? 'bg-indigo-950 shadow-lg' : (step >= 2 ? 'bg-slate-50' : 'bg-green-500')}`}>
+                                                {status.a && <div className={`absolute bottom-5 left-1/2 -translate-x-1/2 w-6 h-56 rounded-t-full transition-all duration-1000 ${status.iA ? 'bg-indigo-950' : (step >= 2 ? 'bg-slate-50' : 'bg-green-500')}`}>
                                                     {step === 1 && <div className="absolute inset-0 flex flex-col items-center py-6 gap-10 opacity-60"><div className="w-2.5 h-2.5 bg-white rounded-full animate-bounce"/><div className="w-2.5 h-2.5 bg-white rounded-full animate-bounce" style={{animationDelay:'0.7s'}}/></div>}
                                                 </div>}
-                                                {status.iA && <div className="absolute inset-0 bg-indigo-900/40 animate-pulse"/>}
                                             </div>
-                                            <span className="mt-5 font-black text-slate-700 text-sm">TEST A (LIGHT)</span>
+                                            <span className="mt-5 font-black text-slate-700 text-sm">시험관 A (빛)</span>
                                         </div>
-
-                                        <div id="tube-b" ref={tubeBRef} className="flex flex-col items-center">
-                                            <div className="w-18 h-72 bg-blue-50/30 border-2 border-white rounded-b-full relative overflow-hidden shadow-[inset_0_4px_10px_rgba(0,0,0,0.05)]">
+                                        <div ref={tubeBRef} className="flex flex-col items-center">
+                                            <div className="w-18 h-72 bg-blue-50/30 border-2 border-white rounded-b-full relative overflow-hidden">
                                                 <div className="absolute bottom-0 w-full h-4/5 bg-blue-200/20"/>
                                                 {status.b && <div className={`absolute bottom-5 left-1/2 -translate-x-1/2 w-6 h-56 rounded-t-full transition-all duration-1000 ${status.iB ? 'bg-slate-200' : (step >= 2 ? 'bg-slate-50' : 'bg-green-600')}`}/>}
-                                                {status.foil && step === 0 && <div className="absolute inset-0 bg-slate-800 z-10 flex items-center justify-center border-2 border-slate-600 font-black text-white text-[10px] -rotate-90 tracking-widest">ALUMINUM</div>}
-                                                {status.iB && <div className="absolute inset-0 bg-amber-900/10"/>}
+                                                {status.foil && step === 0 && <div className="absolute inset-0 bg-slate-800 z-10 flex items-center justify-center border-2 border-slate-600 font-black text-white text-[10px] -rotate-90 tracking-widest uppercase">Aluminum</div>}
                                             </div>
-                                            <span className="mt-5 font-black text-slate-400 text-sm">TEST B (DARK)</span>
+                                            <span className="mt-5 font-black text-slate-400 text-sm">시험관 B (어둠)</span>
                                         </div>
                                     </div>
 
                                     {isDragging && (
                                         <div className="fixed pointer-events-none z-50 scale-150" style={{left: pos.x, top: pos.y, transform: 'translate(-50%, -50%)'}}>
                                             {dragType === 'p' && <div className="w-4 h-20 bg-green-500 rounded-full border-2 border-white shadow-2xl"/>}
-                                            {dragType === 'f' && <div className="w-16 h-10 bg-slate-400 rounded-sm border-2 border-white shadow-2xl"/>}
+                                            {dragType === 'f' && <div className="w-16 h-10 bg-slate-400 border-2 border-white shadow-2xl"/>}
                                             {dragType === 'fire' && <div className={`w-1.5 h-36 bg-amber-800 border-t-8 border-red-500 ${status.fire === 'bright' ? 'shadow-[0_0_50px_orange]' : ''}`}/>}
                                             {dragType === 'drop' && <div className="w-10 h-10 text-blue-600 drop-shadow-2xl"><SvgIcon name="drop"/></div>}
                                         </div>
                                     )}
 
                                     {step === 2 && (
-                                        <div className="absolute inset-0 bg-white/70 backdrop-blur-md z-30 flex items-center justify-center animate-in fade-in duration-500">
-                                            <div className="bg-white p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 border border-blue-50">
+                                        <div className="absolute inset-0 bg-white/70 backdrop-blur-md z-30 flex items-center justify-center">
+                                            <div className="bg-white p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6">
                                                 <div className="w-16 h-16 border-[6px] border-blue-600 border-t-transparent rounded-full animate-spin"/>
                                                 <span className="font-black text-xl text-slate-800">엽록소 제거 중...</span>
                                             </div>
@@ -188,11 +191,10 @@
                                 </div>
                             ) : (
                                 <div className="w-full h-full flex flex-col md:flex-row items-center justify-center gap-16 py-10 cell-anim">
-                                    {/* 고퀄리티 현미경 관찰 뷰 */}
                                     {['A', 'B'].map(type => (
                                         <div key={type} className="flex flex-col items-center gap-6">
-                                            <div className={`text-xs font-black px-5 py-2 rounded-full uppercase tracking-tighter shadow-sm ${type === 'A' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                                                Specimen {type} ({type === 'A' ? 'Active' : 'Control'})
+                                            <div className={`text-xs font-black px-5 py-2 rounded-full shadow-sm ${type === 'A' ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'}`}>
+                                                시험관 {type} ({type === 'A' ? '청람색' : '변화없음'})
                                             </div>
                                             <div className="lens-frame shadow-2xl">
                                                 <div className="grid grid-cols-4 w-full h-full p-2 opacity-90">
@@ -201,7 +203,7 @@
                                                             {[...Array(8)].map((_, j) => (
                                                                 <div 
                                                                     key={j} 
-                                                                    className={`w-1.5 h-1.5 rounded-full transition-all duration-1000 ${type === 'A' ? 'bg-indigo-950 shadow-[0_0_4px_rgba(30,27,75,0.6)]' : 'bg-green-600/30'}`}
+                                                                    className={`w-2 h-2 rounded-full transition-all duration-1000 ${type === 'A' ? 'bg-indigo-950 shadow-[0_0_4px_rgba(0,0,0,0.5)]' : 'bg-green-600/30'}`}
                                                                     style={{ margin: `${Math.random()*1}px` }}
                                                                 />
                                                             ))}
@@ -216,36 +218,26 @@
                         </div>
 
                         <div className="lg:col-span-1 flex flex-col gap-6">
-                            <div className="bg-[#0f172a] rounded-[3rem] p-8 text-white flex flex-col shadow-2xl border border-slate-800 h-full">
-                                <h2 className="text-blue-500 font-black text-[10px] tracking-[0.2em] uppercase mb-8 flex items-center gap-3">
+                            <div className="bg-[#0f172a] rounded-[3rem] p-8 text-white flex flex-col shadow-2xl h-full">
+                                <h2 className="text-blue-500 font-black text-[10px] tracking-widest uppercase mb-8 flex items-center gap-3">
                                     <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"/> Lab Assistant
                                 </h2>
                                 <div className="flex-1 space-y-8">
                                     <div>
                                         <h3 className="text-xl font-black mb-3">{steps[step].t}</h3>
-                                        <p className="text-slate-400 text-sm leading-relaxed">{steps[step].d}</p>
+                                        <p className="text-slate-400 text-sm leading-relaxed mb-8">{steps[step].d}</p>
                                     </div>
                                     
                                     {step === 1 && status.fire !== 'none' && (
-                                        <div className={`p-5 rounded-2xl border-2 font-bold text-xs leading-tight transition-all ${status.fire === 'bright' ? 'bg-orange-500/10 border-orange-500/50 text-orange-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
-                                            {status.fire === 'bright' ? "✨ A 관찰 결과: 불꽃이 다시 살아납니다! 광합성으로 산소가 발생했음을 의미합니다." : "❄️ B 관찰 결과: 산소가 없어 불꽃이 바로 꺼집니다."}
+                                        <div className={`p-5 rounded-2xl border-2 font-bold text-xs ${status.fire === 'bright' ? 'bg-orange-500/10 border-orange-500/50 text-orange-400' : 'bg-slate-800 border-slate-700 text-slate-500'}`}>
+                                            {status.fire === 'bright' ? "✨ A: 불꽃이 다시 살아납니다! (산소 확인)" : "❄️ B: 불꽃이 꺼집니다."}
                                         </div>
                                     )}
                                 </div>
                                 
                                 <div className="mt-12 space-y-4">
-                                    <button 
-                                        onClick={() => step < 4 && setStep(step + 1)}
-                                        disabled={step === 4 || (step === 0 && (!status.a || !status.b || !status.foil))}
-                                        className={`w-full py-5 rounded-[2rem] font-black flex items-center justify-center gap-3 transition-all active:scale-95 text-sm ${step === 4 || (step === 0 && (!status.a || !status.b || !status.foil)) ? 'bg-slate-800 text-slate-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500 shadow-xl shadow-blue-900/40'}`}
-                                    >
-                                        NEXT PHASE <div className="w-4 h-4"><SvgIcon name="play"/></div>
-                                    </button>
-                                    {step === 4 && (
-                                        <button onClick={() => setViewMode(viewMode === 'bench' ? 'micro' : 'bench')} className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 rounded-[2rem] font-black flex items-center justify-center gap-3 shadow-xl shadow-emerald-900/40 active:scale-95 transition-all text-sm">
-                                            <div className="w-5 h-5"><SvgIcon name="micro"/></div> {viewMode === 'bench' ? "MICROSCOPE VIEW" : "RETURN TO BENCH"}
-                                        </button>
-                                    )}
+                                    <button onClick={() => step < 4 && setStep(step + 1)} disabled={step === 4 || (step === 0 && (!status.a || !status.b || !status.foil))} className={`w-full py-5 rounded-[2rem] font-black transition-all active:scale-95 text-sm ${step === 4 || (step === 0 && (!status.a || !status.b || !status.foil)) ? 'bg-slate-800 text-slate-600' : 'bg-blue-600 shadow-xl shadow-blue-900/40'}`}>NEXT PHASE</button>
+                                    {step === 4 && <button onClick={() => setViewMode(viewMode === 'bench' ? 'micro' : 'bench')} className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 rounded-[2rem] font-black shadow-xl shadow-emerald-900/40 active:scale-95 transition-all text-sm flex items-center justify-center gap-2"><div className="w-5 h-5"><SvgIcon name="micro"/></div> {viewMode === 'bench' ? "현미경 보기" : "실험대로 복귀"}</button>}
                                 </div>
                             </div>
                         </div>
